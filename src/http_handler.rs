@@ -6,11 +6,11 @@ use lambda_http::{Body, Error, Request, RequestExt, Response};
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let who = event
+    let _who = event
         .query_string_parameters_ref()
         .and_then(|params| params.first("name"))
         .unwrap_or("world");
-    let message = format!("Hello {who}, this is an AWS Lambda HTTP request");
+    let message = "Hello everyone, from Rust code running on Lambda";
 
     // Return something that implements IntoResponse.
     // It will be serialized to the right response event automatically by the runtime
@@ -25,8 +25,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use lambda_http::{Request, RequestExt};
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_generic_http_handler() {
@@ -49,8 +49,7 @@ mod tests {
         let mut query_string_parameters: HashMap<String, String> = HashMap::new();
         query_string_parameters.insert("name".into(), "rust-lambda-testing".into());
 
-        let request = Request::default()
-            .with_query_string_parameters(query_string_parameters);
+        let request = Request::default().with_query_string_parameters(query_string_parameters);
 
         let response = function_handler(request).await.unwrap();
         assert_eq!(response.status(), 200);
