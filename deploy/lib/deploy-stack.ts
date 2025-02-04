@@ -6,6 +6,7 @@ import {
   Runtime,
   FunctionUrlAuthType,
 } from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { CfnOutput } from "aws-cdk-lib";
 import path = require("path");
 
@@ -21,6 +22,13 @@ export class DeployStack extends cdk.Stack {
       handler: "does_not_matter",
       functionName: "rust-lambda-testing",
     });
+
+    handler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:ListTables"],
+        resources: ["*"],
+      }),
+    );
 
     const fnUrl = handler.addFunctionUrl({
       authType: FunctionUrlAuthType.NONE,

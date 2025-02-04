@@ -6,6 +6,7 @@ use http_handler::function_handler;
 async fn main() -> Result<(), Error> {
     tracing::init_default_subscriber();
 
-    run(service_fn(function_handler)).await
+    run(service_fn(function_handler)).await?;
+    Ok(())
 }
 

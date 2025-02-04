@@ -1,5 +1,7 @@
-use lambda_http::{Body, Error, Request, RequestExt, Response};
-use aws_sdk_dynamodb::{Client, Error};
+use aws_config::meta::region::RegionProviderChain;
+use aws_config::BehaviorVersion;
+use aws_sdk_dynamodb::Client;
+use lambda_http::{Body, Error, Request, Response};
 
 /// This is the main body for the function.
 /// Write your code inside it.
@@ -7,60 +9,32 @@ use aws_sdk_dynamodb::{Client, Error};
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
-    let _who = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("name"))
-        .unwrap_or("world");
-    let message = "Hello everyone, from Rust code running on Lambda";
+    let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
 
-    // Return something that implements IntoResponse.
-    // It will be serialized to the right response event automatically by the runtime
-    let resp = Response::builder()
+    let config = aws_config::defaults(BehaviorVersion::latest())
+        .region(region_provider)
+        .load()
+        .await;
+
+    println!("Using region: {:?}", config.region().unwrap());
+
+    let client = Client::new(&config);
+
+    let resp = client.list_tables().send().await.map_err(|e| {
+        eprintln!("DynamoDB request failed: {:?}", e);
+        Error::from(format!("DynamoDB error: {}", e))
+    })?;
+
+    println!("Tables");
+
+    let table_names = resp.table_names();
+
+    for name in table_names {
+        println!(" {}", name);
+    }
+
+    Ok(Response::builder()
         .status(200)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
-    Ok(resp)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use lambda_http::{Request, RequestExt};
-    use std::collections::HashMap;
-
-    #[tokio::test]
-    async fn test_generic_http_handler() {
-        let request = Request::default();
-
-        let response = function_handler(request).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let body_bytes = response.body().to_vec();
-        let body_string = String::from_utf8(body_bytes).unwrap();
-
-        assert_eq!(
-            body_string,
-            "Hello world, this is an AWS Lambda HTTP request"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_http_handler_with_query_string() {
-        let mut query_string_parameters: HashMap<String, String> = HashMap::new();
-        query_string_parameters.insert("name".into(), "rust-lambda-testing".into());
-
-        let request = Request::default().with_query_string_parameters(query_string_parameters);
-
-        let response = function_handler(request).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let body_bytes = response.body().to_vec();
-        let body_string = String::from_utf8(body_bytes).unwrap();
-
-        assert_eq!(
-            body_string,
-            "Hello rust-lambda-testing, this is an AWS Lambda HTTP request"
-        );
-    }
+        .body(Body::from(format!("Tables: {}", table_names.join(", "))))
+        .expect("Failed to construct response"))
 }
