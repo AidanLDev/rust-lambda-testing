@@ -19,31 +19,10 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     println!("Using region: {:?}", config.region().unwrap());
 
     let client = Client::new(&config);
-
-    let resp = client.list_tables().send().await.map_err(|e| {
-        eprintln!("DynamoDB request failed: {:?}", e);
-        Error::from(format!("DynamoDB error: {}", e))
-    })?;
-
-    println!("Tables");
-
-    let table_names = resp.table_names();
-
-    // Getting the email table name
-    let email_table: Vec<String> = table_names
-        .into_iter()
-        .filter(|name| name.contains("email"))
-        .cloned()
-        .collect();
-
-    println!("Email table is caleld {}", email_table[0]);
-
-    for name in table_names {
-        println!(" {}", name);
-    }
+    let email_list_table = String::from("NewsLetterSubscribers");
 
     Ok(Response::builder()
         .status(200)
-        .body(Body::from(format!("Tables: {}", table_names.join(", "))))
+        .body(Body::from(format!("working...: ")))
         .expect("Failed to construct response"))
 }
