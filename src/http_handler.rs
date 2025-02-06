@@ -29,6 +29,15 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
     let table_names = resp.table_names();
 
+    // Getting the email table name
+    let email_table: Vec<String> = table_names
+        .into_iter()
+        .filter(|name| name.contains("email"))
+        .cloned()
+        .collect();
+
+    println!("Email table is caleld {}", email_table[0]);
+
     for name in table_names {
         println!(" {}", name);
     }
