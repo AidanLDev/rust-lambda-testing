@@ -24,7 +24,18 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
 
     let raw_items = get_all_items(&client, &email_list_table).await?;
 
-    println!("raw_items {:?} ", raw_items);
+    let emails: Vec<String> = raw_items
+        .iter()
+        .filter_map(|item| {
+            item.get("Email")
+                .and_then(|email_av| match email_av.as_s() {
+                    Ok(s) => Some(s.to_string()),
+                    Err(_) => None,
+                })
+        })
+        .collect();
+
+    println!("Emails: {:?}", emails);
 
     Ok(Response::builder()
         .status(200)
@@ -32,7 +43,10 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
         .expect("Failed to construct response"))
 }
 
-async fn get_all_items(client: &Client, table_name: &String) -> Result<Vec<HashMap<String, AttributeValue>>, aws_sdk_dynamodb::Error> {
+async fn get_all_items(
+    client: &Client,
+    table_name: &String,
+) -> Result<Vec<HashMap<String, AttributeValue>>, aws_sdk_dynamodb::Error> {
     let mut items = Vec::new();
     let mut last_evaluated_key = None;
 
@@ -56,6 +70,4 @@ async fn get_all_items(client: &Client, table_name: &String) -> Result<Vec<HashM
     }
 
     Ok(items)
-
-} 
-
+}
