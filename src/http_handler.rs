@@ -81,8 +81,8 @@ async fn get_all_items(
 async fn send_email(
     ses_client: &Ses_Client,
     recipients: &[&str],
-) -> Result<SendEmailOutput, SendEmailError> {
-    let sender = "your_verified_sender_email@example.com"; // Replace with your verified sender email
+) -> Result<SendEmailOutput, Error<SendEmailError>> {
+    let sender = "dev@aidanlowson.com";
     let subject = "Hello World";
     let body_text = "Hello World!";
     let body_html = "<html><body><h1>Hello World!</h1></body></html>";
@@ -114,4 +114,11 @@ async fn send_email(
         )
         .build();
 
+    let email_request = ses_client
+        .send_email()
+        .source(sender)
+        .destination(destination)
+        .message(message);
+
+    Ok(email_request.send().await?)
 }
