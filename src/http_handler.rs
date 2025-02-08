@@ -1,6 +1,10 @@
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{types::AttributeValue, Client};
+use aws_sdk_ses::{
+    operation::send_email::{SendEmailError, SendEmailOutput},
+    Client as Ses_Client,
+};
 use lambda_http::{Body, Error, Request, Response};
 use std::collections::HashMap;
 
@@ -20,6 +24,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, E
     println!("Using region: {:?}", config.region().unwrap());
 
     let client = Client::new(&config);
+    let ses_client = Ses_Client::new(&config);
+
     let email_list_table = String::from("NewsLetterSubscribers");
 
     let raw_items = get_all_items(&client, &email_list_table).await?;
@@ -70,4 +76,42 @@ async fn get_all_items(
     }
 
     Ok(items)
+}
+
+async fn send_email(
+    ses_client: &Ses_Client,
+    recipients: &[&str],
+) -> Result<SendEmailOutput, SendEmailError> {
+    let sender = "your_verified_sender_email@example.com"; // Replace with your verified sender email
+    let subject = "Hello World";
+    let body_text = "Hello World!";
+    let body_html = "<html><body><h1>Hello World!</h1></body></html>";
+
+    let destination = aws_sdk_ses::types::Destination::builder()
+        .to_addresses(
+            recipients
+                .iter()
+                .map(|&r| r.to_string())
+                .collect::<Vec<_>>(),
+        )
+        .build();
+
+    let message = aws_sdk_ses::types::Message::builder()
+        .subject(subject)
+        .body(
+            aws_sdk_ses::types::Body::builder()
+                .text(
+                    aws_sdk_ses::types::Content::builder()
+                        .data(body_text)
+                        .build(),
+                )
+                .html(
+                    aws_sdk_ses::types::Content::builder()
+                        .data(body_html)
+                        .build(),
+                )
+                .build(),
+        )
+        .build();
+
 }
