@@ -30,6 +30,20 @@ export class DeployStack extends cdk.Stack {
       }),
     );
 
+    handler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:Scan"],
+        resources: ["*"],
+      }),
+    );
+
+    handler.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ses:SendEmail"],
+        resources: ["*"],
+      }),
+    );
+
     const fnUrl = handler.addFunctionUrl({
       authType: FunctionUrlAuthType.NONE,
     });
