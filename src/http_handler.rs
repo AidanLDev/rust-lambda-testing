@@ -15,7 +15,7 @@ use std::collections::HashMap;
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Lambda_Error> {
     // Extract some useful information from the request
-    let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
+    let region_provider = RegionProviderChain::default_provider().or_else("eu-west-2");
 
     let config = aws_config::defaults(BehaviorVersion::latest())
         .region(region_provider)
@@ -34,10 +34,16 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, L
     let emails: Vec<String> = raw_items
         .iter()
         .filter_map(|item| {
-            item.get("Email")
-                .and_then(|email_av| match email_av.as_s() {
-                    Ok(s) => Some(s.to_string()),
-                    Err(_) => None,
+            item.get("Subscribed")
+                .and_then(|subbed_object| subbed_object.as_bool().ok())
+                .map(|subbed| *subbed)
+                .filter(|subbed| *subbed)
+                .and_then(|_| {
+                    item.get("Email")
+                        .and_then(|email_object| match email_object.as_s() {
+                            Ok(s) => Some(s.to_string()),
+                            Err(_) => None,
+                        })
                 })
         })
         .collect();
@@ -47,6 +53,8 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, L
     println!("About to send mail!");
 
     send_email(&ses_client, vec![String::from("dev@aidanlowson.com")]).await?;
+
+    println!("Emails sent!");
 
     Ok(Response::builder()
         .status(200)
