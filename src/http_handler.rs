@@ -8,6 +8,7 @@ use aws_sdk_ses::{
 };
 use lambda_http::{Body, Error as Lambda_Error, Request, Response};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// This is the main body for the function.
 /// Write your code inside it.
@@ -15,10 +16,10 @@ use std::collections::HashMap;
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, Lambda_Error> {
     // Extract some useful information from the request
-    let region_provider = RegionProviderChain::default_provider().or_else("eu-west-2");
+    let _region_provider = RegionProviderChain::default_provider().or_else("eu-west-2");
 
     let config = aws_config::defaults(BehaviorVersion::latest())
-        .region(region_provider)
+        .region("eu-west-2") // Hard coding this to use eu-west-2
         .load()
         .await;
 
@@ -27,19 +28,22 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, L
     let client = Client::new(&config);
     let ses_client = Ses_Client::new(&config);
 
-    let email_list_table = String::from("NewsLetterSubscribers");
+    let email_list_table = String::from("Emails");
+
+    add_email(&client, String::from("dev@aidanlowson.com")).await?;
+    add_email(&client, String::from("aidanlowson@hotmail.co.uk")).await?;
 
     let raw_items = get_all_items(&client, &email_list_table).await?;
 
     let emails: Vec<String> = raw_items
         .iter()
         .filter_map(|item| {
-            item.get("Subscribed")
+            item.get("subscribed")
                 .and_then(|subbed_object| subbed_object.as_bool().ok())
                 .map(|subbed| *subbed)
                 .filter(|subbed| *subbed)
                 .and_then(|_| {
-                    item.get("Email")
+                    item.get("email")
                         .and_then(|email_object| match email_object.as_s() {
                             Ok(s) => Some(s.to_string()),
                             Err(_) => None,
@@ -60,6 +64,30 @@ pub(crate) async fn function_handler(event: Request) -> Result<Response<Body>, L
         .status(200)
         .body(Body::from("working...: "))
         .expect("Failed to construct response"))
+}
+
+async fn add_email(
+    client: &Client,
+    email: String,
+) -> Result<aws_sdk_dynamodb::operation::put_item::PutItemOutput, Dynamo_Error> {
+    let id_av = AttributeValue::S(Uuid::new_v4().to_string());
+    let email_av = AttributeValue::S(email);
+    let subscribed_av = AttributeValue::Bool(true);
+
+    let req = client
+        .put_item()
+        .table_name("Emails")
+        .item("id", id_av)
+        .item("email", email_av)
+        .item("subscribed", subscribed_av);
+
+    println!("Executing request [{req:?}] to add an item...");
+
+    let res = req.send().await?;
+
+    println!("Added email!");
+
+    Ok(res)
 }
 
 async fn get_all_items(

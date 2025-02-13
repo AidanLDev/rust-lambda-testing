@@ -7,12 +7,22 @@ import {
   FunctionUrlAuthType,
 } from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { CfnOutput } from "aws-cdk-lib";
 import path = require("path");
 
 export class DeployStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const emailTable = new dynamodb.Table(this, "EmailsTable", {
+      tableName: "Emails",
+      partitionKey: {
+        name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     const handler = new Function(this, "MyFunction", {
       code: Code.fromAsset(
@@ -25,15 +35,8 @@ export class DeployStack extends cdk.Stack {
 
     handler.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["dynamodb:ListTables"],
-        resources: ["*"],
-      }),
-    );
-
-    handler.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["dynamodb:Scan"],
-        resources: ["*"],
+        actions: ["dynamodb:Scan", "dynamodb:PutItem"],
+        resources: [emailTable.tableArn],
       }),
     );
 
